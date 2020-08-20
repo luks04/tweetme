@@ -6,13 +6,18 @@ Tweetme
 
 {% block content %}
 
-<div class="row text-center">
+<div id="tweetme"></div>
+
+
+
+
+<div class="row text-center d-none">
     <div class="col">
         <h1>Welcome to Tweetme</h1>
     </div>
 </div>
 
-<div class="row mb-3">
+<div class="row mb-3 d-none">
     <div class="col-md-4 mx-auto col-10">
         <form class="form" id="tweet-create-form" method="POST" action='/create-tweet'>
             {% csrf_token %}
@@ -24,11 +29,28 @@ Tweetme
     </div>
 </div>
 
-<div class="row" id="tweets">
+<div class="row d-none" id="tweets">
     Loading...
 </div>
 
 <script>
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                // Does this cookie string begin with the name we want?
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+
 
     function handleTweetFormError(msg, display){
         var myErrorDiv = document.getElementById("tweet-create-form-error")
@@ -79,6 +101,9 @@ Tweetme
             } else if (xhr.status === 401){
                 alert("You must login!")
                 window.location.href = "/login"
+            }  else if (xhr.status === 403){
+                alert("You must login!")
+                window.location.href = "/login"
             }
         }
         xhr.onerror = function() {
@@ -95,7 +120,7 @@ Tweetme
     function loadTweets(tweetsElement){
         const xhr = new XMLHttpRequest()
         const method = 'GET' // 'POST'
-        const url = "/tweets"
+        const url = "/api/tweets"
         const responseType = "json"
         xhr.responseType = responseType
         xhr.open(method, url)
@@ -117,18 +142,44 @@ Tweetme
 
     loadTweets(tweetsContainerElement)
 
-    function handleDidLike(tweet_id, currentCount){
-        console.log(tweet_id, currentCount)
+    function handleTweetActionBtn(tweet_id, currentCount, action){
+        const url = "/api/tweets/action"
+        const method = "POST"
+        const data = JSON.stringify({
+            id: tweet_id,
+            action: action
+        })
+        const xhr = new XMLHttpRequest()
+        const csrftoken = getCookie('csrftoken');
+        xhr.open(method, url)
+        xhr.setRequestHeader("Content-Type", "application/json")
+        xhr.setRequestHeader("HTTP_X_REQUESTED_WITH", "XMLHttpRequest")
+        xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest")
+        xhr.setRequestHeader("X-CSRFToken", csrftoken)
+        xhr.onload = function(){
+            // React.js this handle the state much better
+            loadTweets(tweetsContainerElement)
+        }
+        xhr.send(data)
+        return
+    }
+
+    function RetweetBtn(tweet){
+        return "<button class='btn btn-outline-success btn-sm' onclick=handleTweetActionBtn(" + tweet.id + "," + tweet.likes +",'retweet')>Retweet</button>"
+    }
+
+    function UnlikeBtn(tweet){
+        return "<button class='btn btn-outline-primary btn-sm' onclick=handleTweetActionBtn(" + tweet.id + "," + tweet.likes +",'unlike')>Unlike</button>"
     }
 
     function LikeBtn(tweet){
-        return "<button class='btn btn-primary btn-sm' onclick=handleDidLike(" + tweet.id + "," + tweet.likes + ")>" + tweet.likes + " Like</button>"
+        return "<button class='btn btn-primary btn-sm' onclick=handleTweetActionBtn(" + tweet.id + "," + tweet.likes +",'like')>" + tweet.likes + " Like</button>"
     }
 
     function formatTweetElement(tweet){
         var formattedTweet = "<div class='col-12 col-md-10 mx-auto border rounded py-3 mb-4 tweet' id='tweet" 
         + tweet.id + "'>" + "<p>" + tweet.content + "</p><div class='btn-group'>"
-        + LikeBtn(tweet) + "</div></div>"
+        + LikeBtn(tweet) + UnlikeBtn(tweet) + RetweetBtn(tweet) + "</div></div>"
         return formattedTweet
     }
 
