@@ -35,6 +35,7 @@ def register_view(request, *args, **kwargs):
     if form.is_valid():
         user = form.save(commit=True)
         user.set_password(form.cleaned_data.get("password1"))
+        # Send a verification email
         login(request, user)
         return redirect("/")
 
